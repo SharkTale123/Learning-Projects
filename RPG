@@ -1,0 +1,245 @@
+#include <iostream>
+#include <ctime>
+#include <stdlib.h>
+
+using namespace std;
+
+class Creature {
+public:
+    Creature();
+    void getData() {
+        cout << "attack: " << attk << " def: " << def << " hp: " << hp << endl;
+    }
+    bool attack(Creature& defender);
+
+private:
+    int attk;
+    int def;
+    int hp;
+};
+
+Creature::Creature(): attk(0), def(0), hp(3) {
+    for (int i = 0; i < 3; i++) {
+        attk += rand() % 34;
+        def += rand() % 34;
+        hp += rand() % 11;
+    }
+}
+
+bool Creature::attack(Creature& defender) {
+    int heroAttack = (rand() % 100) + 1;
+    if (heroAttack >= defender.hp) {
+        defender.hp -= heroAttack;
+        return true;
+    } else {
+        return false;
+    }
+    cout << "Hero HP: " << hp << endl;
+    cout << "Monster HP: " << defender.hp << endl;
+}
+
+class Dungeon {
+public:
+    Dungeon();
+    char getDungeonSquare(int x, int y);
+private:
+    char dungeonMap[10][10];
+};
+
+Dungeon::Dungeon() {
+    char dungeonMatrix[10][11] {
+        "##########",
+        "#  ##    #",
+        "## #  ## #",
+        "#  ## #  #",
+        "#  #  #  #",
+        "## # ## ##",
+        "#  #  #  #",
+        "# ### ## #",
+        "#     #  #",
+        "##########"
+    };
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            dungeonMap[i][j] = dungeonMatrix[i][j];
+        }
+    }
+}
+
+char Dungeon::getDungeonSquare(int x, int y) {
+    return dungeonMap[x][y];
+}
+
+class Logic {
+public:
+    Logic();
+    char queryLocation(int x, int y);
+    void printMap();
+    void moveHero(char heroDirection);
+    void getHeroLocation(int& x, int&y);
+    int countTheMonsters();
+
+
+private:
+    Dungeon mMap;
+    Creature mHero;
+    Creature mMonster[10];
+    Creature* mCreaturePointer[10][10];
+};
+
+Logic::Logic() {
+
+    srand(time(NULL));
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            mCreaturePointer[i][j] = NULL; // make everything point to NULL
+        }
+    }
+
+    // CREATE HERO
+    bool heroCreated = false;
+    while (!heroCreated) {
+        int x = 1 + (rand() % 8);
+        int y = 1 + (rand() % 8);
+        if (mMap.getDungeonSquare(x, y) == ' ' && mCreaturePointer[x][y] == NULL) {
+            mCreaturePointer[x][y] = &mHero;
+            heroCreated = true;
+        }
+    }
+
+    bool monstersCreated = false;
+    int monsterCount = 0;
+    while (!monstersCreated) {
+        int x = (1 + rand()) % 8;
+        int y = (1 + rand()) % 8;
+        if (mMap.getDungeonSquare(x, y) == ' ' && mCreaturePointer[x][y] == NULL) {
+            mCreaturePointer[x][y] = &mMonster[monsterCount];
+            monsterCount++;
+        }
+        if (monsterCount == 10) {
+            monstersCreated = true;
+        }
+    }
+}
+
+char Logic::queryLocation(int x, int y) {
+    for (int i = 0; i < 10; i++) {
+        if (mCreaturePointer[x][y] == &mMonster[i]) {
+            return 'M';
+        }
+    }
+    if (mCreaturePointer[x][y] == &mHero) {
+        return 'H';
+    } else {
+        return mMap.getDungeonSquare(x, y);
+    }
+}
+
+void Logic::printMap() {
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            cout << (char)queryLocation(i, j);
+        }
+        cout << endl;
+    }
+}
+
+void Logic::getHeroLocation(int& x, int& y) {
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            if (mCreaturePointer[j][i] == &mHero) {
+                x = i;
+                y = j;
+            }
+        }
+    }
+
+}
+
+void Logic::moveHero(char heroDirection) {
+    int heroX;
+    int heroY;
+    getHeroLocation(heroX, heroY);
+    int heroNextX = heroX;
+    int heroNextY = heroY;
+
+    switch(heroDirection) {
+    case 'w':
+    case 'W':
+        heroNextY--;
+        break;
+    case 'a':
+    case 'A':
+        heroNextX--;
+        break;
+    case 's':
+    case 'S':
+        heroNextY++;
+        break;
+    case 'd':
+    case 'D':
+        heroNextX++;
+        break;
+    }
+
+
+    for (int z = 0; z < 10; z++) {
+        if (mCreaturePointer[heroNextY][heroNextX] == &mMonster[z]) {
+            cout << "You attacked the monster!" << endl;
+            if (mHero.attack(mMonster[z])) {
+                mCreaturePointer[heroNextY][heroNextX] = &mHero;
+                cout << "Hero defeated the monster!" << endl;
+            } else {
+                heroNextX = heroX;
+                heroNextY = heroY;
+            }
+        }
+    }
+    if (mMap.getDungeonSquare(heroNextY, heroNextX) == '#') {
+        cout << "You can't move through walls...." << endl;
+        heroNextX = heroX;
+        heroNextY = heroY;
+    } else {
+        mCreaturePointer[heroY][heroX] = NULL;
+        mCreaturePointer[heroNextY][heroNextX] = &mHero;
+    }
+
+
+}
+
+int Logic::countTheMonsters() {
+    int counter = 0;
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            if (queryLocation(j, i) == 'M') {
+                counter++;
+            }
+        }
+    }
+    return counter;
+}
+
+int main()
+{
+    Logic logic;
+    logic.printMap();
+
+    char inputChar;
+    while (true) {
+        cout << "Use W, A, S, D, to move your hero(H). Your Goal is to defeat all the monsters(M)!" << endl;
+        cin >> inputChar;
+
+        system("cls");
+        logic.moveHero(inputChar);
+        logic.printMap();
+        if (logic.countTheMonsters() <= 0) {
+            system("cls");
+            cout << "You have finished the game! Great Job!" << endl;
+            break;
+        }
+    }
+
+}
